@@ -18,5 +18,19 @@
     <ClCompile Include="crc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="crc16_ecc240.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="crc16_ecc240_tables.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="crc16_ecc240.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="crc16_ecc240_tables.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

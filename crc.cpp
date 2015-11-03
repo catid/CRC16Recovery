@@ -4,6 +4,12 @@ using namespace std;
 
 #include <stdint.h>
 
+#include "crc16_ecc240.h"
+#include "crc16_ecc240_tables.h"
+
+
+#if 0
+
 typedef uint32_t crc_t;
 
 
@@ -52,11 +58,17 @@ static const int datalen = 30;
 
 uint8_t data[datalen + 32] = {};
 
+#ifdef CRC_CHECK_REPEATS_WITHIN_SPAN
 bool* seen = new bool[0x10000];
+#endif
+
+static uint16_t CorrectionData[0x10000];
 
 bool checkn(crc_t poly, int n)
 {
+#ifdef CRC_CHECK_REPEATS_WITHIN_SPAN
     memset(seen, 0, sizeof(bool) * 0x10000);
+#endif
 
     for (int i = 0; i < datalen * 8 - n + 1; ++i)
     {
@@ -74,11 +86,20 @@ bool checkn(crc_t poly, int n)
             data[k / 8] = 0;
         }
 
+#ifdef CRC_CHECK_REPEATS_WITHIN_SPAN
+        // Check for repeats within the current n, which would be a failure.
         if (seen[r])
         {
             return false;
         }
         seen[r] = true;
+#endif
+
+        if (CorrectionData[r] != 0)
+        {
+            return false;
+        }
+        CorrectionData[r] = (i << 5) | n;
     }
 
     return true;
@@ -86,7 +107,9 @@ bool checkn(crc_t poly, int n)
 
 bool checkvarn(crc_t poly)
 {
-    for (int n = 1; n <= 240; ++n)
+    memset(CorrectionData, 0, sizeof(CorrectionData));
+
+    for (int n = 1; n <= 15; ++n)
     {
         if (!checkn(poly, n))
         {
@@ -385,23 +408,62 @@ static const uint16_t GEN_POLY[2048] = {
 };
 
 
-static const crc_t FAV_POLYS[6] = {
-    0x11bbb,
+static const crc_t FAV_POLYS[4] = {
+    //0x11bbb,
     0x140cd,
     0x1477d,
     0x16605,
     0x17dc5,
-    0x1bbb1
+    //0x1bbb1
 };
 
 
-int main()
+static void PrintRecoveryData()
+{
+    cout << "static const u16 RECOVERY_MAP[0x10000] = {" << endl;
+    int seen = 0;
+    for (int i = 0; i < 0x10000; ++i)
+    {
+        if (CorrectionData[i] == 0)
+        {
+            cout << "0, ";
+        }
+        else
+        {
+            cout << "0x" << hex << CorrectionData[i] << dec << ", ";
+        }
+        if ((++seen & 31) == 0) cout << endl;
+    }
+    cout << "};" << endl;
+}
+
+
+static void PrintCRC16Table()
+{
+    cout << "static const u16 CRCTable[0x10000] = {" << endl;
+    int seen = 0;
+    for (int i = 0; i < 0x10000; ++i)
+    {
+        if (Table[i] == 0)
+        {
+            cout << "0, ";
+        }
+        else
+        {
+            cout << "0x" << hex << Table[i] << dec << ", ";
+        }
+        if ((++seen & 31) == 0) cout << endl;
+    }
+    cout << "};" << endl;
+}
+
+int main_find_polys_and_params()
 {
     //FindGeneratorPolynomials();
 
     int goodcount = 0;
-    for (int polyIndex = 0; polyIndex < 6; ++polyIndex)
-    //for (int polyIndex = 0; polyIndex < 2048; ++polyIndex)
+    for (int polyIndex = 0; polyIndex < 4; ++polyIndex)
+        //for (int polyIndex = 0; polyIndex < 2048; ++polyIndex)
     {
         crc_t poly = FAV_POLYS[polyIndex];
         //crc_t poly = ((crc_t)GEN_POLY[polyIndex] << 1) | 1;
@@ -412,6 +474,9 @@ int main()
         {
             cout << hex << poly << endl;
             ++goodcount;
+
+            PrintRecoveryData();
+            PrintCRC16Table();
         }
         else
         {
@@ -419,6 +484,55 @@ int main()
         }
     }
     cout << "Good count = " << goodcount << endl;
+
+    return 0;
+}
+
+
+#endif
+
+
+int main()
+{
+#ifdef CRC16_ENABLE_TABLE_GENERATION_CODE
+    crc16ecc240::GenerateAndPrint_CRC16_ECC240_REDUCTION_TABLE();
+    crc16ecc240::GenerateAndPrint_CRC16_ECC240_RUN_INVERSE();
+#endif
+
+    if (0 != crc16_ecc240_self_test())
+    {
+        exit(1);
+    }
+
+    // Generate a 32-byte test packet (30 bytes of data, 2 bytes of CRC)
+    uint8_t data[CRC16_ECC240_DATA_BYTES];
+    for (int i = 0; i < CRC16_ECC240_DATA_BYTES; ++i)
+    {
+        data[i] = (uint8_t)i;
+    }
+
+    uint16_t actual_crc = crc16_ecc240_generate(data);
+
+    // Simulate a channel of transmission
+    uint8_t modified_data[CRC16_ECC240_DATA_BYTES];
+    memcpy(modified_data, data, CRC16_ECC240_DATA_BYTES);
+
+    // Simulate a 4-bit burst error
+    modified_data[20] ^= 0x1f;
+
+    uint16_t receivedCRC = actual_crc;
+
+    // Try to correct the errors at the receiver.
+    int result = crc16_ecc240_correct(modified_data, receivedCRC);
+
+    if (result == 0)
+    {
+        cout << "Recovery success!" << endl;
+    }
+    else
+    {
+        cout << "Recovery failure =(" << endl;
+    }
 
     return 0;
 }
