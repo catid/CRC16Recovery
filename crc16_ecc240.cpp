@@ -153,20 +153,27 @@ extern "C" int crc16_ecc240_self_test()
 }
 
 
+static CRC16_ECC240_FORCE_INLINE uint16_t crc16_reduce(uint16_t r)
+{
+    return CRC16_ECC240_REDUCE[0][r & 0xff] ^ CRC16_ECC240_REDUCE[1][r >> 8];
+}
+
+static_assert(CRC16_ECC240_DATA_BYTES % 2 == 0, "Must be even");
+
 extern "C" uint16_t crc16_ecc240_generate(uint8_t * CRC16_ECC240_RESTRICT data)
 {
     uint16_t r = 0;
 
-    // Unroll i = 0
-    r = (uint16_t)data[1] | ((uint16_t)data[0] << 8);
+    uint16_t* CRC16_ECC240_RESTRICT data16 = reinterpret_cast<uint16_t*>(data);
 
-    for (int i = 2; i < 30; i += 2)
+    for (int i = 0; i < CRC16_ECC240_DATA_BYTES / 2; ++i)
     {
-        r = CRC16_ECC240_REDUCTION_TABLE[r];
-        r ^= (uint16_t)data[i + 1] | ((uint16_t)data[i] << 8);
+        uint16_t w = data16[i];
+        r ^= (w >> 8) | (w << 8);
+        r = crc16_reduce(r);
     }
 
-    return CRC16_ECC240_REDUCTION_TABLE[r];
+    return r;
 }
 
 

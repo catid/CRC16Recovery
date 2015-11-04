@@ -60,10 +60,14 @@ namespace crc16ecc240 {
 /*
     CRC16_ECC240_TABLE
 
-    CRC reduction table
-*/
-extern const uint16_t CRC16_ECC240_REDUCTION_TABLE[0x10000];
+    CRC reduction table.
 
+    Table[0] is reduction for xx00 << 8
+    Table[1] is reduction for 00yy << 16
+
+    This enables a much smaller lookup table that can fit comfortably in L1 cache for better speed.
+*/
+extern const uint16_t CRC16_ECC240_REDUCE[2][256];
 
 /*
     CRC16_ECC240_RUN_INVERSE
