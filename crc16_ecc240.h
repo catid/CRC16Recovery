@@ -46,18 +46,24 @@
 
 #ifdef _MSC_VER
 
-// Compiler-specific C++11 restrict keyword
-#define CRC16_ECC240_RESTRICT __restrict
+    // Compiler-specific C++11 restrict keyword
+    #define CRC16_ECC240_RESTRICT __restrict
 
-// Compiler-specific force inline keyword
-#define CRC16_ECC240_FORCE_INLINE __forceinline
+    // Compiler-specific force inline keyword
+    #define CRC16_ECC240_FORCE_INLINE __forceinline
 
-// Compiler-specific alignment keyword
-#define CRC16_ECC240_ALIGNED __declspec(align(16))
+    // Compiler-specific alignment keyword
+    #define CRC16_ECC240_ALIGNED __declspec(align(16))
+
+    // Compiler-specific 128-bit SIMD register keyword
+    #define CRC16_ECC240_M128 __m128i
+
+    // Compiler-specific SSE headers
+    #include <wmmintrin.h> // _mm_clmulepi64_si128
 
 #else
 
-#error "Compiler unsupported : Add support here."
+    #error "Compiler unsupported : Add support here."
 
 #endif
 
@@ -70,7 +76,6 @@ extern "C" {
 // Returns 0 on success.
 // Returns non-zero on failure.
 int crc16_ecc240_self_test();
-
 
 // Compute the CRC16 for 240 bits (30 bytes) of data.
 // data: Zero-padded 30 bytes.
