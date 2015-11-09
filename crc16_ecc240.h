@@ -94,7 +94,7 @@ extern "C" {
 // Precondition: bytes >= 2; bytes is even; bytes <= 30
 //
 // Returns the calculated CRC
-uint16_t crc16_ecc240_generate(uint8_t* data, int bytes);
+uint16_t crc16_ecc240_generate(const void* data, int bytes);
 
 // May modify the data to correct errors.
 //

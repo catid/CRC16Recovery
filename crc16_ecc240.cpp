@@ -90,8 +90,9 @@ static CRC16_ECC240_FORCE_INLINE uint16_t crc16_reduce(uint16_t r)
     return CRC16_ECC240_REDUCE[0][r & 0xff] ^ CRC16_ECC240_REDUCE[1][r >> 8];
 }
 
-extern "C" uint16_t crc16_ecc240_generate(uint8_t * CRC16_ECC240_RESTRICT data, int bytes)
+extern "C" uint16_t crc16_ecc240_generate(const void* vdata, int bytes)
 {
+    const uint8_t * CRC16_ECC240_RESTRICT data = reinterpret_cast<const uint8_t * CRC16_ECC240_RESTRICT>(vdata);
     uint16_t r = 0;
 
     for (int i = 0; i < bytes; i += 2)
