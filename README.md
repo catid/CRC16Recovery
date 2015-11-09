@@ -1,7 +1,7 @@
 # CRC16Recovery
 Optimized CRC16 with error recovery in C
 
-Fairly compact CRC16 codebase for up to 240 bits (30 bytes).  It recovers from single bit errors.
+Fairly compact CRC16 codebase for up to 240 bits (30 bytes).  It corrects single bit errors.  It detects up to 5 bit flip errors.
 
 I wrote this while exploring what was possible for error recovery using CRCs.  Single-bit/burst errors seem efficiently correctable, but other correctable errors seem to require a large awkward table.
 
