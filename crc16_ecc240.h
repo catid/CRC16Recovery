@@ -85,9 +85,8 @@ extern "C" {
 #endif
 
 
-// Returns 0 on success.
-// Returns non-zero on failure.
-int crc16_ecc240_self_test();
+//-----------------------------------------------------------------------------
+// API
 
 // Compute the CRC16 result of the provided data
 //
@@ -110,6 +109,22 @@ uint16_t crc16_ecc240_generate(uint8_t* data, int bytes);
 //   "Selected CRC Polynomials Can Correct Errors and Thus Reduce Retransmission"
 //   by Travis Mandel, Jens Mache
 int crc16_ecc240_check(uint8_t* receivedData, int bytes, uint16_t receivedCRC);
+
+
+//-----------------------------------------------------------------------------
+// Extra Tools
+
+// Returns 0 on success.
+// Returns non-zero on failure.
+int crc16_ecc240_self_test();
+
+//#define CRC16_ENABLE_TABLE_GENERATION_CODE
+
+#ifdef CRC16_ENABLE_TABLE_GENERATION_CODE
+
+    void GenerateAndPrint_CRC16_ECC240_REDUCTION_TABLE();
+
+#endif // CRC16_ENABLE_TABLE_GENERATION_CODE
 
 
 #ifdef __cplusplus

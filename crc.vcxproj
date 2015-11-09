@@ -129,12 +129,10 @@
   <ItemGroup>
     <ClCompile Include="crc.cpp" />
     <ClCompile Include="crc16_ecc240.cpp" />
-    <ClCompile Include="crc16_ecc240_tables.cpp" />
     <ClCompile Include="koopman_hdlen.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crc16_ecc240.h" />
-    <ClInclude Include="crc16_ecc240_tables.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

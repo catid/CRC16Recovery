@@ -5,7 +5,6 @@ using namespace std;
 #include <stdint.h>
 
 #include "crc16_ecc240.h"
-#include "crc16_ecc240_tables.h"
 
 
 static void test_get_error(uint16_t crc, int bytes, int& errorOffset, uint16_t& errorSyndrome)

@@ -24,18 +24,12 @@
     <ClCompile Include="crc16_ecc240.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="crc16_ecc240_tables.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="koopman_hdlen.cpp">
       <Filter>Source Files\koopman</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crc16_ecc240.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="crc16_ecc240_tables.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
