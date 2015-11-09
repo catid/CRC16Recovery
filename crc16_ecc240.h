@@ -35,8 +35,20 @@
 // Library version
 #define CRC16_ECC240_VERSION 1
 
-// Works with 30 bytes of data
-#define CRC16_ECC240_DATA_BYTES 30
+/*
+    CRC16_ECC240_POLY
+
+    Chosen CRC16 polynomial designed for HD=5 from
+    http://users.ece.cmu.edu/~koopman/crc/
+
+    0xac9a = x^16 +x^14 +x^12 +x^11 +x^8 +x^5 +x^4 +x^2 +1  (0x15935) <=> (0xac9a; 0x15935)
+
+    By virtue of being a CRC, this can detect single burst errors up to 16 bits,
+    and this particular CRC can detect up to 5 single bit errors in the data.
+
+    It can also handle error correction for single bits for up to 240 bits (30 bytes) of data.
+*/
+#define CRC16_ECC240_POLY 0x15935
 
 
 //-----------------------------------------------------------------------------
@@ -77,14 +89,27 @@ extern "C" {
 // Returns non-zero on failure.
 int crc16_ecc240_self_test();
 
-// Compute the CRC16 for 240 bits (30 bytes) of data.
-// data: Zero-padded 30 bytes.
-uint16_t crc16_ecc240_generate(uint8_t* data);
+// Compute the CRC16 result of the provided data
+//
+// Precondition: data points to a valid buffer that is 'bytes' in length
+// Precondition: bytes >= 2; bytes is even; bytes <= 30
+//
+// Returns the calculated CRC
+uint16_t crc16_ecc240_generate(uint8_t* data, int bytes);
 
 // May modify the data to correct errors.
+//
+// Precondition: data points to a valid buffer that is 'bytes' in length
+// Precondition: bytes >= 2; bytes is even; bytes <= 30
+//
 // Returns 0 on success.
 // Returns non-zero on failure to correct the data.
-int crc16_ecc240_correct(uint8_t* receivedData, uint16_t receivedCRC);
+//
+// Single-bit error correction based on running CRC backwards and insights
+// from this paper:
+//   "Selected CRC Polynomials Can Correct Errors and Thus Reduce Retransmission"
+//   by Travis Mandel, Jens Mache
+int crc16_ecc240_check(uint8_t* receivedData, int bytes, uint16_t receivedCRC);
 
 
 #ifdef __cplusplus

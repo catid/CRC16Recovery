@@ -32,185 +32,110 @@
 namespace crc16ecc240 {
 
 
-// Input is the high 16 bits of the polynomial.
-// The low bit is implicitly 1.
-static bool CheckTruncatedPoly(uint32_t poly)
-{
-    uint32_t lfsr = 1;
-
-    int count = 0;
-    for (int ii = 0; ii < 0x10000 - 1; ++ii)
-    {
-        uint32_t lsb = lfsr & 1;
-        lfsr >>= 1;
-        if (lsb) lfsr ^= poly;
-        if (lfsr == 1) ++count;
-    }
-
-    if (lfsr == 1 && count == 1)
-    {
-        return true;
-    }
-
-    return false;
-}
-
-// 240 bits of data for self test
-static const int SelfTest_datalen = 30;
-static uint8_t SelfTest_data[30];
-static bool* SelfTest_seen;
-
-static bool check_n_runs(int n)
-{
-    for (int i = 0; i < SelfTest_datalen * 8 - n + 1; ++i)
-    {
-        for (int j = 0; j < n; ++j)
-        {
-            int k = i + j;
-            SelfTest_data[k / 8] ^= 1 << (k % 8);
-        }
-
-        uint16_t r = crc16_ecc240_generate(SelfTest_data);
-
-        for (int j = 0; j < n; ++j)
-        {
-            int k = i + j;
-            SelfTest_data[k / 8] = 0;
-        }
-
-        // Check for repeats within the current n, which would be a failure.
-        if (SelfTest_seen[r])
-        {
-            return false;
-        }
-        SelfTest_seen[r] = true;
-    }
-
-    return true;
-}
-
-static bool check_detect_240()
-{
-    for (int n = 1; n <= 240; ++n)
-    {
-        memset(SelfTest_seen, 0, sizeof(bool) * 0x10000);
-
-        if (!check_n_runs(n))
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-static bool check_correct_15()
-{
-    memset(SelfTest_seen, 0, sizeof(bool) * 0x10000);
-
-    for (int n = 1; n <= 15; ++n)
-    {
-        if (!check_n_runs(n))
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-
 //-----------------------------------------------------------------------------
-// API
-
-
-extern "C" int crc16_ecc240_self_test()
-{
-    // Verify polynomial has perfect error detection for 16 bits.
-    if (!CheckTruncatedPoly(CRC16_ECC240_POLY >> 1))
-    {
-        return -1;
-    }
-
-    SelfTest_seen = new bool[0x10000];
-
-    // Verify that CRC16_ECC can detect any run of errors over 240 bits.
-    if (!check_detect_240())
-    {
-        delete[] SelfTest_seen;
-        return -2;
-    }
-
-    // Verify that CRC16_ECC can correct any run of errors from 1-15 bits.
-    if (!check_correct_15())
-    {
-        delete[] SelfTest_seen;
-        return -3;
-    }
-
-    delete[] SelfTest_seen;
-    return 0;
-}
-
+// crc16_ecc240_generate
 
 static CRC16_ECC240_FORCE_INLINE uint16_t crc16_reduce(uint16_t r)
 {
     return CRC16_ECC240_REDUCE[0][r & 0xff] ^ CRC16_ECC240_REDUCE[1][r >> 8];
 }
 
-static_assert(CRC16_ECC240_DATA_BYTES % 2 == 0, "Must be even");
-
-extern "C" uint16_t crc16_ecc240_generate(uint8_t * CRC16_ECC240_RESTRICT data)
+extern "C" uint16_t crc16_ecc240_generate(uint8_t * CRC16_ECC240_RESTRICT data, int bytes)
 {
     uint16_t r = 0;
 
-    uint16_t* CRC16_ECC240_RESTRICT data16 = reinterpret_cast<uint16_t*>(data);
-
-    for (int i = 0; i < CRC16_ECC240_DATA_BYTES / 2; ++i)
+    for (int i = 0; i < bytes; i += 2)
     {
-        uint16_t w = data16[i];
-        r ^= (w >> 8) | (w << 8);
-        r = crc16_reduce(r);
+        // Convert data into a 16-bit word
+        uint16_t w = (uint16_t)data[i + 1] | ((uint16_t)data[i] << 8);
+
+        r = crc16_reduce(r ^ w);
     }
 
     return r;
 }
 
 
-extern "C" int crc16_ecc240_correct(uint8_t* receivedData, uint16_t receivedCRC)
+//-----------------------------------------------------------------------------
+// crc16_ecc240_correct
+
+static uint16_t crc_backwards(uint16_t crc)
 {
-    uint16_t actualCRC = crc16_ecc240_generate(receivedData);
+    // Run the CRC backwards
+    if (crc & 1)
+    {
+        crc = (crc >> 1) ^ (CRC16_ECC240_POLY >> 1);
+    }
+    else
+    {
+        crc >>= 1;
+    }
+    return crc;
+}
 
+static int GetSingleErrorBitLocation(uint16_t crc, int bytes)
+{
+    for (int i = 0; i < bytes * 8 + 16; i++)
+    {
+        crc = crc_backwards(crc);
+
+        if (crc == 1)
+        {
+            return i; // Return the error location
+        }
+    }
+
+    return -1; // Not found
+}
+
+extern "C" int crc16_ecc240_check(uint8_t* receivedData, int bytes, uint16_t receivedCRC)
+{
+    // Find error syndrome
+    // This works because the error pattern is xor-additive with the CRC of the original data
+    uint16_t actualCRC = crc16_ecc240_generate(receivedData, bytes);
     uint16_t errorSyndrome = actualCRC ^ receivedCRC;
-
     if (errorSyndrome == 0)
     {
-        // Already fine.
+        // Already fine
         return 0;
     }
 
-    uint16_t runInverseInfo = CRC16_ECC240_RUN_INVERSE[errorSyndrome];
-
-    if (runInverseInfo == 0)
+    // Try to find the single error bit location
+    int location = GetSingleErrorBitLocation(errorSyndrome, bytes);
+    if (location == -1)
     {
-        // No data on how to fix this.
+        // Not found
         return -1;
     }
 
-    int errorOffset = runInverseInfo / 32;
-    int errorRunLength = runInverseInfo % 32;
+    // Correct the error
+    int dataByteOffset = ((14 + bytes * 8) - location) / 8;
+    int dataBitOffset = 7 - (((14 + bytes * 8) - location) % 8);
+    receivedData[dataByteOffset] ^= 1 << dataBitOffset;
 
-    for (int i = 0; i < errorRunLength; ++i)
-    {
-        const int j = errorOffset + i;
-        receivedData[j / 8] ^= 1 << (j % 8);
-    }
-
-    uint16_t modifiedCRC = crc16_ecc240_generate(receivedData);
-
-    if (modifiedCRC != receivedCRC)
+    // Check if the CRC matches now
+    if (crc16_ecc240_generate(receivedData, bytes) != receivedCRC)
     {
         return -2;
+    }
+
+    return 0;
+}
+
+
+extern "C" int crc16_ecc240_self_test()
+{
+    static const int DataLength = 30;
+    uint8_t data[DataLength];
+    for (int i = 0; i < DataLength; ++i)
+        data[i] = (uint8_t)i;
+
+    uint16_t actual_crc = crc16_ecc240_generate(data, DataLength);
+    static const uint16_t kExpectedCRC = 3995;
+
+    if (actual_crc != kExpectedCRC)
+    {
+        return -1;
     }
 
     return 0;
